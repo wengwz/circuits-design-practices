@@ -1,4 +1,5 @@
 import os
+import sys
 import cocotb
 import cocotb_test.simulator
 from test_utils.test_pipe import TestPipe
@@ -42,4 +43,11 @@ def test_s2m_pipe(is_ref, is_wave):
     )
 
 if __name__ == "__main__":
-    test_s2m_pipe(True, True)
+    is_ref = False
+    is_wave = False
+    for opt in sys.argv:
+        if opt == '-r':
+            is_ref = True
+        if opt == '-w':
+            is_wave = True
+    test_s2m_pipe(is_ref, is_wave)

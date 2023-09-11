@@ -1,4 +1,5 @@
 import os
+import sys
 import cocotb
 import cocotb_test.simulator
 from test_utils.test_pipe import TestPipe
@@ -21,7 +22,10 @@ def test_m2s_pipe(is_ref, is_wave):
     module = os.path.splitext(os.path.basename(__file__))[0]
     v_top_file = os.path.join(proj_path, "src", toplevel)
     parameters = {"DATA_WIDTH":DATA_WIDTH}
-    defines = ["WAVE"]
+    defines = []
+    if is_wave:
+        defines.append("WAVE")
+    
     if is_ref:
         v_top_file = os.path.join(v_top_file, "ref", toplevel + ".v")
     else:
@@ -39,4 +43,11 @@ def test_m2s_pipe(is_ref, is_wave):
     )
 
 if __name__ == "__main__":
-    test_m2s_pipe(True, True)
+    is_ref = False
+    is_wave = False
+    for opt in sys.argv:
+        if opt == '-r':
+            is_ref = True
+        if opt == '-w':
+            is_wave = True
+    test_m2s_pipe(is_ref, is_wave)

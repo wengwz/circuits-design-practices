@@ -38,12 +38,14 @@ You need to complete the start template based on requirements in the design spec
 For each practice, there is a python-based testbench using cocotb package under the directory [./test](./test/). Taking the practice m2s_pipe as an example, after finishing your implementation, you can launch the testbench by:
 ```sh
 cd ./test
-make sim TOP=m2s_pipe # specify the component to be test by TOP variable
+make sim TOP=m2s_pipe WAVE=1 REF=0
+# TOP specifies the name of module to be verified
+# WAVE specifies whether or not to dump waveform(0: no waveform 1: dump waveform)
+# REF specifies which solution to be simulated(0: your solution 1: reference solution )
 ```
-The reault of simulation will be displayed on the terminal and the waveform is located in ./test/build/m2s_pipe/wave.vcd.
+The reault of simulation will be displayed on the terminal and the waveform is saved in ./test/build/m2s_pipe/wave.vcd. 
 
 # Contributing
-You are welcome to contribute to this repo by offering circuit design problems that you have ever encountered in the job interviews or some important subcompnents frequently used in digital system design. You can commit either an issue only containg specification of the circuit design problem or a pull request involving both problem description and codes of the starting template and testbench. And for any questions about existing practices, you can also commit issues or pull requests.
-
+You are welcome to contribute to this repo by offering circuit design problems that you have ever encountered in job interviews or some important subcompnents frequently used in digital system design. You can commit an issue only containg specification of the problem. Or you can also commit a pull request involving problem description, starting template, reference solution and testbench. And we are also open for any questions about existing practices through issues or pull requests.
 
 

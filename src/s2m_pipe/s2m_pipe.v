@@ -16,9 +16,9 @@ module s2m_pipe #(
     input pipe_out_ready
 );
 
-`ifdef WAVE
+`ifdef DUMP_WAVE
     initial begin
-        $dumpfile("wave.vcd");
+        $dumpfile("s2m_pipe.vcd");
         $dumpvars;
     end
 `endif 

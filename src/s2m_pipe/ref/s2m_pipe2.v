@@ -1,5 +1,4 @@
-
-module m2s_pipe #(
+module s2m_pipe #(
     parameter DATA_WIDTH = 256
 )(
     input clk,
@@ -15,7 +14,6 @@ module m2s_pipe #(
     output [DATA_WIDTH - 1 : 0] pipe_out_data,
     input pipe_out_ready
 );
-
     reg valid_r;
     reg [DATA_WIDTH - 1 : 0] data_r;
 
@@ -23,24 +21,19 @@ module m2s_pipe #(
         if (reset) begin
             valid_r <= 1'b0;
         end
-        else if (pipe_in_ready) begin
-            valid_r <= pipe_in_valid;
-        end
-
-        if (pipe_in_ready) begin
+        else if (pipe_in_ready ^ pipe_out_ready) begin
+            valid_r <= pipe_in_valid & pipe_in_ready;
             data_r <= pipe_in_data;
         end
     end
-
-    assign pipe_in_ready = !valid_r || pipe_out_ready;
-    assign pipe_out_valid = valid_r;
-    assign pipe_out_data = data_r;
-
+    
+    assign pipe_in_ready = !valid_r;
+    assign pipe_out_valid = valid_r || pipe_in_valid;
+    assign pipe_out_data = valid_r ? data_r : pipe_in_data;
 `ifdef DUMP_WAVE
     initial begin
-        $dumpfile("ref_m2s_pipe.vcd");
+        $dumpfile("ref_s2m_pipe.vcd");
         $dumpvars;
     end
 `endif
-    
 endmodule

@@ -1,3 +1,4 @@
+
 module s2m_pipe #(
     parameter DATA_WIDTH = 256
 )(
@@ -14,26 +15,45 @@ module s2m_pipe #(
     output [DATA_WIDTH - 1 : 0] pipe_out_data,
     input pipe_out_ready
 );
-    reg valid_r;
-    reg [DATA_WIDTH - 1 : 0] data_r;
+    reg pipe_valid_r;
+    reg pipe_ready_r;
+    reg [DATA_WIDTH - 1 : 0] pipe_data_r;
 
     always @(posedge clk) begin
         if (reset) begin
-            valid_r <= 1'b0;
+            pipe_ready_r <= 1'b0;
         end
-        else if (pipe_in_ready ^ pipe_out_ready) begin
-            valid_r <= pipe_in_valid & pipe_in_ready;
-            data_r <= pipe_in_data;
+        else begin
+            pipe_ready_r <= pipe_out_ready;
         end
     end
-    
-    assign pipe_in_ready = !valid_r;
-    assign pipe_out_valid = valid_r || pipe_in_valid;
-    assign pipe_out_data = valid_r ? data_r : pipe_in_data;
-`ifdef WAVE
+
+    always @(posedge clk) begin
+        if (reset) begin
+            pipe_valid_r <= 1'b0;
+        end
+        else if (pipe_in_ready && !pipe_out_ready) begin
+            pipe_valid_r <= pipe_in_valid;
+        end
+        else if (pipe_out_ready) begin
+            pipe_valid_r <= 1'b0;
+        end
+    end
+
+    always@(posedge clk) begin
+        if (pipe_in_ready && !pipe_out_ready) begin
+            pipe_data_r <= pipe_in_data;
+        end
+    end
+
+    assign pipe_out_valid = pipe_valid_r || pipe_in_valid;
+    assign pipe_out_data = pipe_valid_r ? pipe_data_r : pipe_in_data;
+    assign pipe_in_ready = !pipe_valid_r;
+
+`ifdef DUMP_WAVE
     initial begin
-        $dumpfile("wave.vcd");
+        $dumpfile("s2m_pipe.vcd");
         $dumpvars;
     end
-`endif
+`endif 
 endmodule

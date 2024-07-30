@@ -4,14 +4,14 @@ WAVE = 0
 REF = 0
 
 ifeq ($(WAVE), 1)
-	OPT += -w
+	OPT += --wave
 endif
 
 ifeq ($(REF), 1)
-	OPT += -r
+	OPT += --ref
 endif
 
-sim:
+sim: clean
 	python3 test_$(TOP).py $(OPT)
 
 clean:

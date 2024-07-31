@@ -19,12 +19,14 @@ The interface definition of s2m_pipe module to be implemented in this practice i
 
 | name | direction | width | description |
 | :----: | :----:  | :----:  | :----:      |
+| clk        | in  | 1-bit | clock signal|
+| reset        | in  | 1-bit | synchronous and active high reset signal |
 | pipe_in_valid | in | 1-bit | **valid** signal driven from **master**|
 | pipe_in_ready | out| 1-bit | **ready** signal driven to **master**  |
-| pipe_in_data  | in | 1-bit | **data** signal driven from **master** |
+| pipe_in_data  | in | `DATA_WIDTH` | **data** signal driven from **master** |
 | pipe_out_valid | out | 1-bit | **valid** signal driven to **slave**|
 | pipe_out_ready | in | 1-bit | **ready** signal driven from **slave**|
-| pipe_out_data  | out | 1-bit | **data** signal driven to **slave** |
+| pipe_out_data  | out | `DATA_WIDTH` | **data** signal driven to **slave** |
 </div>
 
 The module s2m_pipe which is designed to pipeline signal transmitted from **slave** to **master** should ensure that there are no combinational paths from **pipe_out_ready** port to **pipe_in_ready**.

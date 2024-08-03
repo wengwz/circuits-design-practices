@@ -1,5 +1,4 @@
 
-
 module seq_dect(
     input clk,
     input reset,

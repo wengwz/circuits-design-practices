@@ -7,36 +7,87 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 
+class ClockSetting:
+    def __init__(self, name:str, period:int, unit:str="ns"):
+        self.name = name
+        self.period = period
+        self.unit = unit
+    
+    def __str__(self) -> str:
+        return f"{self.name}(period={self.period} unit={self.unit})"
+
+class ResetSetting:
+    def __init__(self, name:str, duration:int, level:bool, clk_name:str):
+        self.name = name
+        self.duration = duration
+        self.level = level
+        self.clk_name = clk_name
+    
+    def __str__(self) -> str:
+        return f"rst={self.name}(level={self.level} duration={self.duration} clk={self.clk_name})"
+
 class BasicTestbench:
     """
     A basic tester whichs wraps some shared operations related with clock and reset  
     """
-    def __init__(self, log, dut, clk_name:str, rst_name:str, clk_period:int, rst_duration:int, rst_level:bool):
+    def __init__(self, log, dut, clks:dict[ClockSetting], rsts:dict[ResetSetting]):
         self.log = log
         self.dut = dut
-        assert hasattr(dut, clk_name)
-        self.clk_port = getattr(dut, clk_name)
-        assert hasattr(dut, rst_name)
-        self.rst_port = getattr(dut, rst_name)
         
-        self.clk_period = clk_period
-        self.rst_duration = rst_duration
-        self.rst_level = rst_level
+        if not isinstance(clks, dict):
+            assert isinstance(clks, ClockSetting)
+            clks = {clks.name: clks}
+            
+        if not isinstance(rsts, dict):
+            assert isinstance(rsts, ResetSetting)
+            rsts = {rsts.name: rsts}
         
-    async def start_gen_clk(self):
-        await cocotb.start(Clock(self.clk_port, self.clk_period, 'ns').start())
-        self.clock_start = True
-        self.log.info(f"Start generating clock signal on port {dir(self.clk_port)} with period={self.clk_period} ns")
+        self.clk_settings = clks
+        self.clk_ports = {}
+        self.is_clks_start = {}
+        for clk_name in self.clk_settings.keys():
+            assert hasattr(dut, clk_name)
+            self.clk_ports[clk_name] = getattr(dut, clk_name)
+            self.is_clks_start[clk_name] = False
+
+        self.rst_settings = rsts
+        self.rst_ports = {}
+        for rst_name in self.rst_settings.keys():
+            assert hasattr(dut, rst_name)
+            self.rst_ports[rst_name] = getattr(dut, rst_name)
+        
+    async def start_gen_clk(self, clk_name:str=None):
+        if clk_name == None:
+            assert len(self.clk_settings) == 1, "The name of clock signal needs is unspecified"
+            clk_name = list(self.clk_settings.keys())[0]
+        else:
+            assert clk_name in self.clk_settings, f"Invalid clock name: {clk_name}"
+            
+        clk_setting = self.clk_settings[clk_name]
+        await cocotb.start(Clock(self.clk_ports[clk_name], clk_setting.period, clk_setting.unit).start())
+        self.is_clks_start[clk_name] = True
+        self.log.info(f"Start generating clock signal {clk_setting}")
     
-    async def reset_dut(self):
-        assert self.clock_start
-        self.rst_port.value = self.rst_level
-        for _ in range(self.rst_duration + 1):
-            await RisingEdge(self.clk_port)
+    async def reset_dut(self, rst_name:str=None):
+        if rst_name == None:
+            assert len(self.rst_settings) == 1, "The name of reset signal is unspecified"
+            rst_name = list(self.rst_settings.keys())[0]
+        else:
+            assert rst_name in self.rst_settings, f"Invalid reset name: {rst_name}"
         
-        self.rst_port.value = not self.rst_level
-        await RisingEdge(self.clk_port)
-        self.log.info(f"Reset DUT through port {dir(self.rst_port)} with level={self.rst_level} cycle_count={self.rst_duration}")
+        rst_setting = self.rst_settings[rst_name]
+        clk_name = rst_setting.clk_name
+        
+        assert clk_name in self.is_clks_start, f"The clk port {clk_name} for rst {rst_name} is invalid"
+        assert self.is_clks_start[clk_name], f"The clk port {clk_name} for rst {rst_name} is idle"
+        
+        self.rst_ports[rst_name].value = rst_setting.level
+        for _ in range(rst_setting.duration + 1):
+            await RisingEdge(self.clk_ports[clk_name])
+        
+        self.rst_ports[rst_name].value = not rst_setting.level
+        await RisingEdge(self.clk_ports[clk_name])
+        self.log.info(f"Complete resetting dut through port {rst_setting}")
     
 
 class PipeInDriver:
@@ -44,6 +95,9 @@ class PipeInDriver:
         self.clk_port = getattr(dut, clk_name)
         self.valid_port = getattr(dut, valid_port_name)
         self.ready_port = getattr(dut, ready_port_name)
+        if not isinstance(data_ports_name, list):
+            assert isinstance(data_ports_name, str)
+            data_ports_name = [data_ports_name]
         self.data_ports = [getattr(dut, data_port_name) for data_port_name in data_ports_name]
         self.idle_ratio = idle_ratio
         self.valid_port.value = False
@@ -51,6 +105,8 @@ class PipeInDriver:
         return
     
     async def drive_pipe_in(self, data_list:list):
+        if not isinstance(data_list, list):
+            data_list = [data_list]
         assert len(data_list) == len(self.data_ports)
         
         while random.random() < self.idle_ratio:
@@ -74,6 +130,9 @@ class PipeOutReceiver:
         self.clk_port = getattr(dut, clk_name)
         self.valid_port = getattr(dut, valid_port_name)
         self.ready_port = getattr(dut, ready_port_name)
+        if not isinstance(data_ports_name, list):
+            assert isinstance(data_ports_name, str)
+            data_ports_name = [data_ports_name]
         self.data_ports = [getattr(dut, data_port_name) for data_port_name in data_ports_name]
         self.idle_ratio = idle_ratio
         self.ready_port.value = False
@@ -95,35 +154,70 @@ class PipeOutReceiver:
 
 
 class TestPipe(BasicTestbench):
-    def __init__(self, dut, data_width, cases_num:int, driver_idle_ratio:float, recv_idle_ratio:float):
+    def __init__(self, dut, 
+                 data_width:int, cases_num:int, 
+                 driver_idle_ratio:float, recv_idle_ratio:float,
+                 pipe_in_ports:dict=None, pipe_out_ports:dict=None):
         self.log = logging.getLogger("TestPipe")
         self.log.setLevel(logging.DEBUG)
+
+        if pipe_in_ports == None:
+            pipe_in_ports = {
+                "valid": "pipe_in_valid",
+                "ready": "pipe_in_ready",
+                "data" : "pipe_in_data",
+                "clk"  : "clk",
+                "rst"  : "reset"
+            }
+        
+        if pipe_out_ports == None:
+            pipe_out_ports = {
+                "valid": "pipe_out_valid",
+                "ready": "pipe_out_ready",
+                "data" : "pipe_out_data",
+                "clk"  : "clk",
+                "rst"  : "reset"
+            }
+
+        self.pipe_in_ports = pipe_in_ports
+        self.pipe_out_ports = pipe_out_ports
+        
+        self.clk_settings = dict()
+        self.rst_settings = dict()
+        
+        for ports in [pipe_in_ports, pipe_out_ports]:
+            clk_name = ports["clk"]
+            if clk_name not in self.clk_settings:
+                self.clk_settings[clk_name] = ClockSetting(name=clk_name, period=10)
+            
+            rst_name = ports["rst"]
+            if rst_name not in self.rst_settings:
+                self.rst_settings[rst_name] = ResetSetting(name=rst_name, duration=3, level=True, clk_name=clk_name)
+
+        
         super().__init__(
             log = self.log,
             dut = dut,
-            clk_name = "clk",
-            rst_name = "reset",
-            clk_period = 10,
-            rst_duration = 3,
-            rst_level = True
+            clks = self.clk_settings,
+            rsts = self.rst_settings
         )
         
         self.pipe_in_driver = PipeInDriver(
             dut = dut,
             idle_ratio = driver_idle_ratio,
-            clk_name = "clk",
-            valid_port_name = "pipe_in_valid",
-            ready_port_name = "pipe_in_ready",
-            data_ports_name = ["pipe_in_data"]
+            clk_name = pipe_in_ports["clk"],
+            valid_port_name = pipe_in_ports["valid"],
+            ready_port_name = pipe_in_ports["ready"],
+            data_ports_name = pipe_in_ports["data"]
         )
         
         self.pipe_out_recv = PipeOutReceiver(
             dut = dut,
             idle_ratio = recv_idle_ratio,
-            clk_name = "clk",
-            valid_port_name = "pipe_out_valid",
-            ready_port_name = "pipe_out_ready",
-            data_ports_name = ["pipe_out_data"]
+            clk_name = pipe_out_ports["clk"],
+            valid_port_name = pipe_out_ports["valid"],
+            ready_port_name = pipe_out_ports["ready"],
+            data_ports_name = pipe_out_ports["data"]
         )
         
         self.cases_num = cases_num
@@ -147,11 +241,14 @@ class TestPipe(BasicTestbench):
             self.log.info(f"Pass {i} testcase: data={ref_data}")
     
     async def run_test(self):
-        await self.start_gen_clk()
-        await self.reset_dut()
+        for clk_name in self.clk_settings.keys():
+            await self.start_gen_clk(clk_name)
+        
+        for rst_name in self.rst_settings.keys():
+            await self.reset_dut(rst_name)
+        
         cocotb.start_soon(self.drive_pipe_in())
         check_thread = cocotb.start_soon(self.check_pipe_out())
         await check_thread
         self.log.info(f"Pass all {self.cases_num} testcases successfully")
-            
 

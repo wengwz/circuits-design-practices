@@ -8,9 +8,9 @@ import random
 import cocotb
 import cocotb_test.simulator
 
-from test_utils import BasicTestbench, PipeInDriver, PipeOutReceiver
+from test_utils import BasicTestbench, ClockSetting, ResetSetting, PipeInDriver, PipeOutReceiver
 
-DATA_WIDTH = 32
+DATA_WIDTH = 16
 CASES_NUM = 128
 DRIVER_IDLE_RATIO = 0.6
 MONITOR_IDLE_RATIO = 0.4
@@ -18,15 +18,23 @@ MONITOR_IDLE_RATIO = 0.4
 class TestSimpleGCD(BasicTestbench):
     def __init__(self, dut, data_width:int, cases_num:int, driver_idle_ratio:float, monitor_idle_ratio:float):
         self.log = logging.getLogger("TestSimpleGCD")
+        self.log.setLevel(logging.INFO)
         self.dut = dut
+        clk_settting = ClockSetting(
+            name = "clk",
+            period = 10
+        )
+        rst_setting = ResetSetting(
+            name = "rst",
+            duration = 3,
+            level = True,
+            clk_name = "clk"
+        )
         super().__init__(
             log = self.log,
             dut = dut,
-            clk_name = "clk",
-            rst_name = "rst",
-            clk_period = 10,
-            rst_duration = 3,
-            rst_level = True
+            clks = clk_settting,
+            rsts = rst_setting
         )
         
         self.pipeDriver = PipeInDriver(

@@ -9,7 +9,7 @@ import cocotb
 import cocotb_test.simulator
 from cocotb.triggers import RisingEdge
 
-from test_utils import BasicTestbench
+from test_utils import BasicTestbench, ClockSetting, ResetSetting
 
 
 TOTAL_SEQ_LEN = 2048
@@ -19,15 +19,16 @@ class TestSeqDect(BasicTestbench):
         self.log = logging.getLogger("TestSeqDect")
         self.log.setLevel(logging.INFO)
         self.dut = dut
+
+        clk_setting = ClockSetting(name="clk", period=10)
+        rst_setting = ResetSetting(name="reset", duration=3, level=True, clk_name="clk")
         super().__init__(
             log = self.log,
             dut = dut,
-            clk_name = "clk",
-            rst_name = "reset",
-            clk_period = 10,
-            rst_duration = 3,
-            rst_level = True
+            clks = clk_setting,
+            rsts = rst_setting
         )
+        
         self.bit_pattern = "1101"
         self.data_in_seq = [random.randint(0, 1) for _ in range(total_seq_len)]
         self.data_out_seq = self.ref_model(self.bit_pattern, self.data_in_seq)
